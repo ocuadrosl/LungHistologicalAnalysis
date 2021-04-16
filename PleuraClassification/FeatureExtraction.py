@@ -13,22 +13,24 @@ import pandas as pd
 import os
 from skimage.feature.texture import local_binary_pattern
 
-inputDir = "/home/oscar/data/biopsy/tiff/dataset_1/images_cleaned/train/"
+inputDir = "/home/oscar/data/biopsy/tiff/dataset_1"
+targetSet = 'test'
+print("START: "+ targetSet)
 
 dataSet = None
-for imageName in os.listdir(inputDir):
+for imageName in os.listdir(inputDir+'/images_cleaned/'+targetSet):
     print(imageName)
 
     #imageName = 'B 2018 8484 C_1x.tiff'
-    maskImage = cv2.imread('/home/oscar/data/biopsy/tiff/dataset_1/boundary_masks/erode_radius_20/'+imageName, cv2.IMREAD_GRAYSCALE)
-    inputImage = cv2.imread('/home/oscar/data/biopsy/tiff/dataset_1/images_cleaned/train/'+imageName, cv2.IMREAD_GRAYSCALE)
-    labelImage = cv2.imread('/home/oscar/data/biopsy/tiff/dataset_1/labels/'+imageName, cv2.IMREAD_COLOR)
+    maskImage = cv2.imread(inputDir+'/boundary_masks/erode_radius_30/'+imageName, cv2.IMREAD_GRAYSCALE)
+    inputImage = cv2.imread(inputDir+'/images_cleaned/'+targetSet+'/'+imageName, cv2.IMREAD_GRAYSCALE)
+    labelImage = cv2.imread(inputDir+'/labels/'+imageName, cv2.IMREAD_COLOR)
     
+    #Crete boolean masks
     #Get pleural regions
     pleuraMask = np.zeros(maskImage.shape, dtype=bool)
     pleuraMask[(labelImage == [0,255,4]).all(axis=2) * (maskImage==[255]) ] = [True]
-    
-    
+        
     
     #Get non pleural regions
     nonPleuraMask = np.zeros(maskImage.shape, np.uint8) #np.uint8 OpenCV uses it
@@ -40,11 +42,10 @@ for imageName in os.listdir(inputDir):
     for i in smallComponents:
         nonPleuraMask[ labels == i] = 0
     nonPleuraMask = (nonPleuraMask > 0)
-    
-    
+        
     
     #local Binary Pattern
-    radius = 1
+    radius = 3
     nPoints = 8 * radius
     nBins = np.arange(0, nPoints + 3)
     
@@ -65,7 +66,7 @@ for imageName in os.listdir(inputDir):
 
 dataSet = pd.DataFrame(data=dataSet)
 
-dataSet.to_csv(inputDir+"/dataset.csv")
+dataSet.to_csv(inputDir+"/csv/"+targetSet+"_dataset.csv")
 
 
 
@@ -77,4 +78,4 @@ dataSet.to_csv(inputDir+"/dataset.csv")
 
 #plt.imshow(lbp, cmap='gray')
 
-
+print("END: "+ targetSet)
