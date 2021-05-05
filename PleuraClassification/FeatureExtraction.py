@@ -12,54 +12,111 @@ import numpy as np
 import pandas as pd
 import os
 from skimage.feature.texture import local_binary_pattern
+import time
+import sys
 
 
-
-inputDir = "/home/oscar/data/biopsy/tiff/dataset_1"
-boundaryDataSet = "erode_radius_30"
-targetSet = 'train'
-
-print("START: "+ targetSet)
-dataSet = None
-
-for imageName in os.listdir(inputDir+'/images_cleaned/'+targetSet):
-    print(imageName)
+def SplitImage(image, tileSize):
+    '''
+        Split image into tiles of size tileSize
+    '''
+    
+    height, width = image.shape
+    #print(image.shape)
+    
   
-    inputImage = cv2.imread(inputDir+'/images_cleaned/'+targetSet+'/'+imageName, cv2.IMREAD_GRAYSCALE)
-    #get mask and convert them to boolean
-    pleuraMask = cv2.imread(inputDir+"/boundary_masks/"+boundaryDataSet+"/pleura/"+imageName, cv2.IMREAD_GRAYSCALE) > 0 
-    nonPleuraMask = cv2.imread(inputDir+"/boundary_masks/"+boundaryDataSet+"/non_pleura/"+imageName, cv2.IMREAD_GRAYSCALE) > 0
-   
-    #cv2.imshow("image", np.asarray(nonPleuraMask*255, dtype="uint8"))
-    #cv2.waitKey(0) 
-    #cv2.destroyAllWindows() 
-
-    #local Binary Pattern
-    radius = 5
-    nPoints = 8 * radius
-    #nBins = np.arange(0, nPoints + 3)
-    
-    lbp = local_binary_pattern(inputImage, nPoints, radius, method='uniform')
-    nBins = int(lbp.max() + 1)
-    histogramPleura,_ = np.histogram(lbp[pleuraMask], bins=nBins, range=(0, nBins))
-    histogramNonPleura,_ = np.histogram(lbp[nonPleuraMask], bins=nBins, range=(0, nBins))
-    
-    histogramPleura = np.append(histogramPleura, 1)
-    histogramNonPleura = np.append(histogramNonPleura, -1)
-    
-    if dataSet is None:
-        dataSet = np.vstack((histogramPleura, histogramNonPleura))
-    else:
-        dataSet = np.vstack( (dataSet, np.vstack((histogramPleura, histogramNonPleura)) ) )
-
-    #print(dataSet)
-
-    #lbp[pleuraMask==False]=0
-    #plt.imshow(lbp, cmap='gray')
-    #plt.waitforbuttonpress()
+    tiles = []
+    maxMultHeight = height-(height%tileSize)
+    maxMultWidth  = width-(width%tileSize)
+    #print(maxMultHeight, maxMultWidth)
+  
+    for i in range(0, maxMultHeight, tileSize):
+        for j in range(0, maxMultWidth, tileSize):
+            #yield image[i:i+tileSize, j:j+tileSize]
+            tiles.append(image[i:i+tileSize, j:j+tileSize])
+            #print(image[i:i+tileSize, j:j+tileSize])
+       
+    #yield image[maxMultHeight:height, maxMultWidth:width]
+    tiles.append(image[maxMultHeight:height, maxMultWidth:width])
+    #print(len(tiles))
+    return tiles
     
 
-dataSet = pd.DataFrame(data=dataSet)
-
-dataSet.to_csv(inputDir+"/csv/"+targetSet+"_"+boundaryDataSet+"_LBP_"+str(radius)+"_"+".csv")
-print("END: "+ targetSet)
+def LBPHistogramToDataset(lbpTiles, maskTiles, isPluera):
+    """
+    Extract histograms from lbp tiles masking with pleura or non-pleura tile masks 
+    """
+    dataset = None
+    
+    for lbpTile, mTile in zip(lbpTiles, maskTiles):
+       
+        
+        #if not True in mTile:
+        
+        if np.sum(mTile == True) < np.sum(mTile)*0.3:     
+            continue
+       
+        #compute the histogram
+        histogramPleura,_ = np.histogram(lbpTile[mTile], bins=nBins, range=(0, nBins))
+        
+        #Add a label to the histogram and convert them in DataFrame
+        histogramPleura = pd.DataFrame( np.append(histogramPleura, isPluera))
+        
+        #Add the image name
+        histogramPleura.loc[-1] = imageName
+        histogramPleura.index = histogramPleura.index + 1  
+        histogramPleura = histogramPleura.sort_index()  
+        #print(histogramPleura)
+        
+        if dataset is None:
+            dataset = histogramPleura.T
+        else:
+            dataset = pd.concat([dataset, histogramPleura.T])
+    
+    return dataset
+            
+if __name__ == "__main__":
+    
+    inputDir = "/home/oscar/data/biopsy/tiff/dataset_1"
+    boundaryDataSet = "erode_radius_20"
+    targetSet = 'test'
+    maskSize = 100
+    
+    print("START: "+ targetSet)
+    
+    dataset= None
+    for imageName in os.listdir(inputDir+'/images_cleaned/'+targetSet):
+        print(imageName)
+      
+        inputImage = cv2.imread(inputDir+'/images_cleaned/'+targetSet+'/'+imageName, cv2.IMREAD_GRAYSCALE)
+        #get mask and convert them to boolean
+        pleuraMask = cv2.imread(inputDir+"/boundary_masks/"+boundaryDataSet+"/pleura/"+imageName, cv2.IMREAD_GRAYSCALE) > 0 
+        nonPleuraMask = cv2.imread(inputDir+"/boundary_masks/"+boundaryDataSet+"/non_pleura/"+imageName, cv2.IMREAD_GRAYSCALE) > 0
+              
+        
+        # local Binary Pattern (LBP)
+        radius = 3
+        nPoints = 8 * radius
+           
+        # Compute LBP fro the whole input image
+        lbp = local_binary_pattern(inputImage, nPoints, radius, method='uniform')
+        nBins = int(lbp.max() + 1)
+        
+        # split masks into tiles   
+        pleuraTiles  = SplitImage(pleuraMask, maskSize)
+        nonPleuraTiles  = SplitImage(nonPleuraMask, maskSize)
+        lbpTiles  = SplitImage(lbp, maskSize)
+       
+        pleuraDataset = LBPHistogramToDataset(lbpTiles, pleuraTiles, 1)
+        nonPleuraDataset = LBPHistogramToDataset(lbpTiles, nonPleuraTiles, -1)
+        
+        
+        if dataset is None:
+            dataset = pd.concat([pleuraDataset, nonPleuraDataset])
+        else:
+            dataset = pd.concat([dataset, pleuraDataset, nonPleuraDataset])
+         
+    dataset = pd.DataFrame(data=dataset)
+    
+    dataset.to_csv(inputDir+"/csv/"+targetSet+"_"+boundaryDataSet+"_LBP_"+str(radius)+".csv", index=False)
+    print("END: "+ targetSet)

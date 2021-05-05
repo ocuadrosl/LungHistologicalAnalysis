@@ -17,16 +17,16 @@ from sklearn.preprocessing import StandardScaler
 
 def GetDataSets(inputDir):
     
-    trainFileName = "train_erode_radius_20.csv"
-    testFileName = "test_erode_radius_20.csv"
+    trainFileName = "train_erode_radius_20_LBP_3.csv"
+    testFileName = "test_erode_radius_20_LBP_3.csv"
     
     trainDataSet = pd.read_csv(inputDir+"/"+trainFileName)
     testDataSet = pd.read_csv(inputDir+"/"+testFileName)
     
-    trainX = trainDataSet.iloc[:,0:11]
+    trainX = trainDataSet.iloc[:,1:27]
     trainY = trainDataSet.iloc[:,-1]
     
-    testX = testDataSet.iloc[:,0:11]
+    testX = testDataSet.iloc[:,1:27]
     testY = testDataSet.iloc[:,-1]
     return trainX, trainY, testX, testY
 
@@ -53,12 +53,23 @@ def SVM(trainX, trainY, testX, testY):
     targetNames = ['Non_pleura', 'Pleura']
     pred = estimator.predict(testX)
     print(classification_report(testY, pred, target_names=targetNames))
+    return estimator, pred
 
 
 if __name__ == "__main__":
+    
     inputDir = "/home/oscar/data/biopsy/tiff/dataset_1/csv"
+    
     trainX, trainY, testX, testY = GetDataSets(inputDir)
     trainX, testX = ScaleData(trainX, testX)
-    SVM(trainX, trainY, testX, testY)
+    
+    _ , prediction = SVM(trainX, trainY, testX, testY)
+    
+    print(testX)
+    
+    
+    
+    
+    
     
 
