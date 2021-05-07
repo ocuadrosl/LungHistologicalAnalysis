@@ -113,9 +113,9 @@ if __name__ == "__main__":
         nBins = int(lbp.max() + 1)
 
         # split masks into tiles   
-        pleuraTiles = SplitImage(pleuraMask, maskSize)
-        nonPleuraTiles = SplitImage(nonPleuraMask, maskSize)
-        lbpTiles = SplitImage(lbp, maskSize)
+        pleuraTiles = SplitImage(pleuraMask, tile_size)
+        nonPleuraTiles = SplitImage(nonPleuraMask, tile_size)
+        lbpTiles = SplitImage(lbp, tile_size)
 
         pleuraDataset = LBPHistogramToDataset(lbpTiles, pleuraTiles, 1)
         nonPleuraDataset = LBPHistogramToDataset(lbpTiles, nonPleuraTiles, -1)
