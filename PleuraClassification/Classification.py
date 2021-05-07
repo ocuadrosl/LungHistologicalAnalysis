@@ -15,29 +15,34 @@ from sklearn.preprocessing import StandardScaler
 
 
 
-def GetDataSets(inputDir):
+def GetDataSets(input_dir):
     
     trainFileName = "train_erode_radius_20_LBP_3.csv"
     testFileName = "test_erode_radius_20_LBP_3.csv"
     
-    trainDataSet = pd.read_csv(inputDir+"/"+trainFileName)
-    testDataSet = pd.read_csv(inputDir+"/"+testFileName)
+    trainDataSet = pd.read_csv(input_dir+"/"+trainFileName)
+    testDataSet = pd.read_csv(input_dir+"/"+testFileName)
     
-    trainX = trainDataSet.iloc[:,1:27]
-    trainY = trainDataSet.iloc[:,-1]
-    
-    testX = testDataSet.iloc[:,1:27]
-    testY = testDataSet.iloc[:,-1]
-    return trainX, trainY, testX, testY
+    train_X = trainDataSet.iloc[:, 1:-1]
+    # print(train_X)
+    # input("Press Enter to continue...")
+    train_Y = trainDataSet.iloc[:, -1]
+    # print(train_Y)
+    test_X = testDataSet.iloc[:, 1:-1]
+    test_Y = testDataSet.iloc[:, -1]
+
+    return train_X, train_Y, test_X, test_Y
 
 def ScaleData(trainX, testX):
     scaler = StandardScaler()
     scaler.fit(trainX)
-    trainX = pd.DataFrame(scaler.transform(trainX)) # to pandas data frame
+    # trainX = pd.DataFrame(scaler.transform(trainX))  # to pandas data frame
+    trainX = scaler.transform(trainX)
     
     scaler2 = StandardScaler()
     scaler2.fit(testX)
-    testX = pd.DataFrame(scaler2.transform(testX)) # to pandas data frame
+    # testX = pd.DataFrame(scaler2.transform(testX))  # to pandas data frame
+    testX = scaler2.transform(testX)  # to pandas data frame
     return trainX, testX
 
 
@@ -59,14 +64,15 @@ def SVM(trainX, trainY, testX, testY):
 if __name__ == "__main__":
     
     inputDir = "/home/oscar/data/biopsy/tiff/dataset_1/csv"
+
+    train_X, train_Y, test_X, test_Y = GetDataSets(inputDir)
+
+    train_X, test_X = ScaleData(train_X, test_X)
+
+
+    _, prediction = SVM(train_X, train_Y, test_X, test_Y)
     
-    trainX, trainY, testX, testY = GetDataSets(inputDir)
-    trainX, testX = ScaleData(trainX, testX)
-    
-    _ , prediction = SVM(trainX, trainY, testX, testY)
-    
-    print(testX)
-    
+
     
     
     
