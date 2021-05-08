@@ -17,54 +17,54 @@ import sys
 
 
 def SplitImage(image, tileSize):
-    '''
+    """
         Split image into tiles of size tileSize
-    '''
+    """
 
     height, width = image.shape
     # print(image.shape)
 
     tiles = []
+    positions = []
     maxMultHeight = height - (height % tileSize)
     maxMultWidth = width - (width % tileSize)
     # print(maxMultHeight, maxMultWidth)
-
     for i in range(0, maxMultHeight, tileSize):
         for j in range(0, maxMultWidth, tileSize):
             # yield image[i:i+tileSize, j:j+tileSize]
+            positions.append(np.asarray((i, i + tileSize, j, j + tileSize)))
             tiles.append(image[i:i + tileSize, j:j + tileSize])
             # print(image[i:i+tileSize, j:j+tileSize])
 
-    # yield image[maxMultHeight:height, maxMultWidth:width]
-
-    last_tile = image[maxMultHeight:height, maxMultWidth:width]
-    if last_tile.shape[0] > 0 and last_tile.shape[1] > 0:
-        tiles.append(last_tile)
-    # else:
-    #    print(last_tile.shape)
-    # print(len(tiles))
-    return tiles
+    lastTile = image[maxMultHeight:height, maxMultWidth:width]
+    if lastTile.shape[0] > 0 and lastTile.shape[1] > 0:
+        tiles.append(lastTile)
+        positions.append(np.asarray((maxMultHeight, height, maxMultWidth, width)))
+    return tiles, positions
 
 
-def LBPHistogramToDataset(lbpTiles, maskTiles, isPluera):
+def ComputeLBPHistograms(positions, lbpTiles, maskTiles, isPluera):
     """
-    Extract histograms from lbp tiles masking with pleura or non-pleura tile masks 
+    Extract histograms from lbp tiles masking with pleura or non-pleura tile masks
+    besides positions and labels are insert into the histogram so that
+    [image name, position, LBP, label]
+    [0, 1-5, 6-30, 31]
     """
-    dataset = None
+    dataFrame = pd.DataFrame()
 
-    for lbpTile, mTile in zip(lbpTiles, maskTiles):
-
+    for position, lbpTile, mTile in zip(positions, lbpTiles, maskTiles):
 
         # if not True in mTile:
-        if mTile.shape[0]*mTile.shape[1] <= 0:
-            print("fuck ", mTile.shape[0]*mTile.shape[1])
+        if mTile.shape[0] * mTile.shape[1] <= 0:
+            print("fuck ", mTile.shape[0] * mTile.shape[1])
 
-        if np.sum(mTile == True) <= (mTile.shape[0]*mTile.shape[1] * 0.2):
+        if np.sum(mTile == True) <= (mTile.shape[0] * mTile.shape[1] * 0.1):
             continue
-        # print(np.sum(mTile == True))
+
 
         # compute the histogram
         histogramPleura, _ = np.histogram(lbpTile[mTile], bins=nBins, range=(0, nBins))
+        histogramPleura = np.hstack((position.T, histogramPleura))
 
         # Add a label to the histogram and convert them in DataFrame
         histogramPleura = pd.DataFrame(np.append(histogramPleura, isPluera))
@@ -75,24 +75,25 @@ def LBPHistogramToDataset(lbpTiles, maskTiles, isPluera):
         histogramPleura = histogramPleura.sort_index()
         # print(histogramPleura)
 
-        if dataset is None:
-            dataset = histogramPleura.T
+        if dataFrame.empty:
+            dataFrame = histogramPleura.T
         else:
-            dataset = pd.concat([dataset, histogramPleura.T])
+            dataFrame = pd.concat([dataFrame, histogramPleura.T])
 
-    return dataset
+
+    return dataFrame
 
 
 if __name__ == "__main__":
 
     inputDir = "/home/oscar/data/biopsy/tiff/dataset_1"
     boundaryDataSet = "erode_radius_20"
-    targetSet = 'test'
-    tile_size = 200  # tiles
+    targetSet = 'train'
+    tile_size = 100  # tiles
 
-    print("START: " + targetSet)
+    print("BEGIN: " + targetSet)
 
-    dataset = None
+    dataset = pd.DataFrame()
 
     for imageName in os.listdir(inputDir + '/images_cleaned/' + targetSet):
         print(imageName)
@@ -113,14 +114,14 @@ if __name__ == "__main__":
         nBins = int(lbp.max() + 1)
 
         # split masks into tiles   
-        pleuraTiles = SplitImage(pleuraMask, tile_size)
-        nonPleuraTiles = SplitImage(nonPleuraMask, tile_size)
-        lbpTiles = SplitImage(lbp, tile_size)
+        pleuraTiles, positions = SplitImage(pleuraMask, tile_size) # get positions just one here because it is the same
+        nonPleuraTiles, _ = SplitImage(nonPleuraMask, tile_size)
+        lbpTiles, _ = SplitImage(lbp, tile_size)
 
-        pleuraDataset = LBPHistogramToDataset(lbpTiles, pleuraTiles, 1)
-        nonPleuraDataset = LBPHistogramToDataset(lbpTiles, nonPleuraTiles, -1)
+        pleuraDataset = ComputeLBPHistograms(positions, lbpTiles, pleuraTiles, 1)
+        nonPleuraDataset = ComputeLBPHistograms(positions, lbpTiles, nonPleuraTiles, -1)
 
-        if dataset is None:
+        if dataset.empty:
             dataset = pd.concat([pleuraDataset, nonPleuraDataset])
         else:
             dataset = pd.concat([dataset, pleuraDataset, nonPleuraDataset])

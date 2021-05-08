@@ -23,12 +23,10 @@ def GetDataSets(input_dir):
     trainDataSet = pd.read_csv(input_dir+"/"+trainFileName)
     testDataSet = pd.read_csv(input_dir+"/"+testFileName)
     
-    train_X = trainDataSet.iloc[:, 1:-1]
-    # print(train_X)
-    # input("Press Enter to continue...")
+    train_X = trainDataSet.iloc[:, 5:-1]
     train_Y = trainDataSet.iloc[:, -1]
     # print(train_Y)
-    test_X = testDataSet.iloc[:, 1:-1]
+    test_X = testDataSet.iloc[:, 5:-1]
     test_Y = testDataSet.iloc[:, -1]
 
     return train_X, train_Y, test_X, test_Y
@@ -67,15 +65,11 @@ if __name__ == "__main__":
 
     train_X, train_Y, test_X, test_Y = GetDataSets(inputDir)
 
+    print(sum(test_Y == 1))
+    print(sum(test_Y == -1))
+
     train_X, test_X = ScaleData(train_X, test_X)
 
 
     _, prediction = SVM(train_X, train_Y, test_X, test_Y)
     
-
-    
-    
-    
-    
-    
-
