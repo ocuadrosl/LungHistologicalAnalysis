@@ -15,14 +15,34 @@ from sklearn.preprocessing import StandardScaler
 
 
 
-def GetDataSets(input_dir):
-    
-    trainFileName = "train_erode_radius_20_LBP_3.csv"
-    testFileName = "test_erode_radius_20_LBP_3.csv"
-    
-    trainDataSet = pd.read_csv(input_dir+"/"+trainFileName)
-    testDataSet = pd.read_csv(input_dir+"/"+testFileName)
-    
+def balanceDateset(x, y):
+    """
+        Simple balancing datasets by removing random features
+    """
+
+    nPleura = sum(y == 1)
+    nNonPleura = sum(y == -1)
+    nRemove = abs(nPleura - nNonPleura);
+    print(nRemove)
+
+    # remove non pleura
+    if nPleura < nNonPleura:
+        print("Balancing non pleura")
+        indices = np.array(np.where(y == -1)).ravel()
+        #print(indices, "indices")
+        removeIndices = np.random.choice(indices, nRemove, replace=False)
+        x.drop(removeIndices)
+        y.drop(removeIndices)
+    else: # remove non pleura
+        print("Balancing  pleura")
+        indices = np.array(np.where(y == 1)).ravel()
+        removeIndices = np.random.choice(indices, nRemove, replace=False)
+        x = x.drop(removeIndices)
+        y = y.drop(removeIndices)
+
+
+def SplitDatasets(trainDataSet, testDataSet ):
+
     train_X = trainDataSet.iloc[:, 5:-1]
     train_Y = trainDataSet.iloc[:, -1]
     # print(train_Y)
@@ -48,28 +68,40 @@ def SVM(trainX, trainY, testX, testY):
     
     paramGrid = {'C': [1, 10, 100, 1000, 10000, 100000], 'gamma': [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.1, 'scale', 'auto'], }
     estimator = GridSearchCV(svm.SVC(kernel='rbf'), paramGrid, scoring='accuracy', n_jobs=8)
-    estimator.fit(trainX, trainY);
+    estimator.fit(trainX, trainY)
         
     print("Best estimator found by grid search:")
     print(estimator.best_params_)
     
     targetNames = ['Non_pleura', 'Pleura']
-    pred = estimator.predict(testX)
-    print(classification_report(testY, pred, target_names=targetNames))
-    return estimator, pred
+    classification = estimator.predict(testX)
+    print(classification_report(testY, classification, target_names=targetNames))
+    return estimator, classification
+
+
 
 
 if __name__ == "__main__":
     
     inputDir = "/home/oscar/data/biopsy/tiff/dataset_1/csv"
+    trainFileName = "train_erode_radius_30_LBP_3.csv"
+    testFileName = "test_erode_radius_30_LBP_3.csv"
 
-    train_X, train_Y, test_X, test_Y = GetDataSets(inputDir)
+    trainDataSet = pd.read_csv(inputDir+"/"+trainFileName)
+    testDataSet = pd.read_csv(inputDir+"/"+testFileName)
 
-    print(sum(test_Y == 1))
-    print(sum(test_Y == -1))
+    train_X, train_Y, test_X, test_Y = SplitDatasets(trainDataSet, testDataSet)
+
+    print("Pleura ", sum(train_Y == 1))
+    print("Non pleura ", sum(train_Y == -1))
+    # balanceDateset(train_X, train_Y)
+
 
     train_X, test_X = ScaleData(train_X, test_X)
 
+    _, classification = SVM(train_X, train_Y, test_X, test_Y)
 
-    _, prediction = SVM(train_X, train_Y, test_X, test_Y)
-    
+    # write the classification result
+    classResult = testDataSet.iloc[:, 0:5]
+    classResult['classification'] = pd.DataFrame(classification)
+    classResult.to_csv(inputDir+"/classification_"+testFileName,  index=False)
