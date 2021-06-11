@@ -83,7 +83,7 @@ def SVM(trainX, trainY, testX, testY):
 
 if __name__ == "__main__":
     
-    inputDir = "/home/oscar/data/biopsy/tiff/dataset_1/csv"
+    inputDir = "/home/oscar/data/biopsy/tiff/dataset_2/csv"
     trainFileName = "train_erode_radius_30_LBP_3.csv"
     testFileName = "test_erode_radius_30_LBP_3.csv"
 

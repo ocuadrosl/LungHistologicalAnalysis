@@ -86,11 +86,11 @@ def ComputeLBPHistograms(positions, lbpTiles, maskTiles, isPluera):
 
 if __name__ == "__main__":
 
-    inputDir = "/home/oscar/data/biopsy/tiff/dataset_1"
+    inputDir = "/home/oscar/data/biopsy/tiff/dataset_2"
     boundaryDataSet = "erode_radius_30"
-    targetSet = 'test'
+    targetSet = 'train'
 
-    tile_size = 100  # tiles
+    tile_size = 300  # tiles
 
     print("BEGIN: " + targetSet)
 
